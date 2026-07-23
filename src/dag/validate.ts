@@ -21,6 +21,31 @@ export function validateDag(dag: Dag): string[] {
     errors.push(`Cycle detected: ${cycle.join(" -> ")}`);
   }
 
+  for (const node of dag.nodes) {
+    if (!node.spawns) continue;
+    if (node.spawns.outcomes.length === 0) {
+      errors.push(`Node "${node.id}" has a spawn rule with no outcomes.`);
+      continue;
+    }
+    for (const outcome of node.spawns.outcomes) {
+      const templateIds = new Set(outcome.nodes.map((t) => t.id));
+      for (const tmpl of outcome.nodes) {
+        if (ids.has(tmpl.id)) {
+          errors.push(
+            `Node "${node.id}" outcome "${outcome.label}" spawns "${tmpl.id}", which collides with an existing node id.`,
+          );
+        }
+        for (const dep of tmpl.dependsOn ?? []) {
+          if (dep !== node.id && !ids.has(dep) && !templateIds.has(dep)) {
+            errors.push(
+              `Node "${node.id}" outcome "${outcome.label}" spawn "${tmpl.id}" depends on unknown node "${dep}".`,
+            );
+          }
+        }
+      }
+    }
+  }
+
   return errors;
 }
 

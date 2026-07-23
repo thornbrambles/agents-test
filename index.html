@@ -44,6 +44,11 @@
           <input id="speed-input" type="range" min="1" max="8" step="0.5" value="1" />
           <span id="speed-label">1&times;</span>
         </div>
+        <div class="row">
+          <label for="seed-input">Dynamic-DAG seed</label>
+          <input id="seed-input" type="number" value="1" />
+          <button id="reroll-seed-btn" class="secondary" type="button">🎲 New seed</button>
+        </div>
         <div class="row buttons">
           <button id="run-beads-btn">Run Beads</button>
           <button id="run-actors-btn">Run Actors</button>
@@ -80,6 +85,15 @@
           no central queue: parallelism falls directly out of the dependency graph &mdash; it's a
           <em>push</em>/reactive model. Cap its concurrency above to compare it against Beads with
           the same resource budget.
+        </p>
+        <p>
+          <strong>Dynamic DAGs</strong>: pick the "Dynamic: flaky pipeline" preset to see a node
+          decide what happens next based on its own result &mdash; <code>Run tests</code> "sees"
+          pass or fail and spawns a different set of downstream nodes accordingly. The
+          <strong>seed</strong> above determines that decision deterministically per node id, so
+          Beads and Actors always face the <em>same</em> dynamic choices even though they discover
+          and execute nodes in a different order &mdash; the comparison stays fair. Reroll the seed
+          to see a different draw.
         </p>
       </section>
     </main>

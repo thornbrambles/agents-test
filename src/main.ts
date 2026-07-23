@@ -13,6 +13,8 @@ const workersInput = document.getElementById("workers-input") as HTMLInputElemen
 const capActorsInput = document.getElementById("cap-actors-input") as HTMLInputElement;
 const speedInput = document.getElementById("speed-input") as HTMLInputElement;
 const speedLabel = document.getElementById("speed-label")!;
+const seedInput = document.getElementById("seed-input") as HTMLInputElement;
+const rerollSeedBtn = document.getElementById("reroll-seed-btn") as HTMLButtonElement;
 const runBeadsBtn = document.getElementById("run-beads-btn") as HTMLButtonElement;
 const runActorsBtn = document.getElementById("run-actors-btn") as HTMLButtonElement;
 const runBothBtn = document.getElementById("run-both-btn") as HTMLButtonElement;
@@ -28,6 +30,10 @@ speedInput.addEventListener("input", () => {
   speedLabel.textContent = `${speedInput.value}×`;
 });
 
+rerollSeedBtn.addEventListener("click", () => {
+  seedInput.value = String(Math.floor(Math.random() * 1_000_000));
+});
+
 function setRunning(running: boolean): void {
   for (const btn of allButtons) btn.disabled = running;
 }
@@ -37,7 +43,8 @@ async function doRunBeads(): Promise<void> {
   if (!dag) return;
   const workers = Math.max(1, Number(workersInput.value) || 1);
   const speed = Number(speedInput.value) || 1;
-  lastBeads = await runBeads(dag, { workers, speed });
+  const seed = Number(seedInput.value) || 0;
+  lastBeads = await runBeads(dag, { workers, speed, seed });
   renderTimeline(beadsTimelineEl, lastBeads);
   renderSummary(summaryEl, lastBeads, lastActors);
 }
@@ -47,8 +54,10 @@ async function doRunActors(): Promise<void> {
   if (!dag) return;
   const workers = Math.max(1, Number(workersInput.value) || 1);
   const speed = Number(speedInput.value) || 1;
+  const seed = Number(seedInput.value) || 0;
   lastActors = await runActors(dag, {
     speed,
+    seed,
     maxConcurrency: capActorsInput.checked ? workers : undefined,
   });
   renderTimeline(actorsTimelineEl, lastActors);

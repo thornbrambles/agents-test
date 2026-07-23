@@ -1,4 +1,5 @@
 import type { Dag, RunResult, TimelineEntry } from "../dag/types";
+import { materializeSpawn } from "../dag/spawn";
 import { Semaphore, sleep } from "./util";
 
 export interface ActorsOptions {
@@ -7,6 +8,8 @@ export interface ActorsOptions {
    * actor-model behavior: every node with satisfied deps starts instantly). */
   maxConcurrency?: number;
   speed: number;
+  /** Seeds any dynamic-spawn decisions, so beads and actors see the same ones. */
+  seed: number;
 }
 
 /**
@@ -14,9 +17,10 @@ export interface ActorsOptions {
  * instant its dependency actors' "done" messages have all arrived, then
  * broadcasts its own "done" to dependents. There is no shared queue or
  * central scheduler — parallelism falls out of the message graph itself.
+ * Nodes with a `spawns` rule create new actors on the fly as they finish.
  */
 export async function runActors(dag: Dag, options: ActorsOptions): Promise<RunResult> {
-  const { maxConcurrency, speed } = options;
+  const { maxConcurrency, speed, seed } = options;
   const sem = maxConcurrency ? new Semaphore(maxConcurrency) : null;
   const byId = new Map(dag.nodes.map((n) => [n.id, n]));
   const entries: TimelineEntry[] = [];
@@ -29,6 +33,7 @@ export async function runActors(dag: Dag, options: ActorsOptions): Promise<RunRe
   }
 
   const done = new Map<string, Promise<void>>();
+  const allActors = new Set<Promise<void>>();
 
   function actorFor(id: string): Promise<void> {
     const cached = done.get(id);
@@ -45,13 +50,29 @@ export async function runActors(dag: Dag, options: ActorsOptions): Promise<RunRe
       entries.push({ nodeId: id, label: node.label, start: nodeStart, end: nodeEnd, lane });
       freeLanes.push(lane);
       release?.();
+
+      if (node.spawns) {
+        for (const spawned of materializeSpawn(seed, id, node.spawns, byId)) {
+          allActors.add(actorFor(spawned.id));
+        }
+      }
     })();
 
     done.set(id, promise);
+    allActors.add(promise);
     return promise;
   }
 
-  await Promise.all(dag.nodes.map((n) => actorFor(n.id)));
+  for (const n of dag.nodes) actorFor(n.id);
+
+  // Spawning happens synchronously inside an actor's own async body before it
+  // settles, so each wave of Promise.all already picks up that wave's spawns.
+  // Loop until a full wave produces no new actors.
+  for (;;) {
+    const wave = Array.from(allActors);
+    await Promise.all(wave);
+    if (allActors.size === wave.length) break;
+  }
 
   return { strategy: "actors", entries, totalMs: performance.now() - start };
 }

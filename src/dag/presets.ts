@@ -40,4 +40,34 @@ export const presets: Dag[] = [
       dependsOn: i === 0 ? [] : [`s${i - 1}`],
     })),
   },
+  {
+    name: "Dynamic: flaky pipeline",
+    nodes: [
+      { id: "checkout", label: "Checkout code", durationMs: 300, dependsOn: [] },
+      { id: "build", label: "Build", durationMs: 500, dependsOn: ["checkout"] },
+      {
+        id: "test",
+        label: "Run tests",
+        durationMs: 450,
+        dependsOn: ["build"],
+        spawns: {
+          outcomes: [
+            {
+              label: "tests pass",
+              weight: 7,
+              nodes: [{ id: "deploy", label: "Deploy", durationMs: 400 }],
+            },
+            {
+              label: "tests fail",
+              weight: 3,
+              nodes: [
+                { id: "debug", label: "Debug failure", durationMs: 350 },
+                { id: "retest", label: "Re-run tests", durationMs: 450, dependsOn: ["debug"] },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+  },
 ];

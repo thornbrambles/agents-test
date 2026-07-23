@@ -1,4 +1,5 @@
 import type { Dag, RunResult, TimelineEntry } from "../dag/types";
+import { materializeSpawn } from "../dag/spawn";
 import { sleep } from "./util";
 
 export interface BeadsOptions {
@@ -8,16 +9,19 @@ export interface BeadsOptions {
   workers: number;
   /** Divide durations by this to speed up/slow down the simulated run. */
   speed: number;
+  /** Seeds any dynamic-spawn decisions, so beads and actors see the same ones. */
+  seed: number;
 }
 
 /**
  * Simulates working a Beads-style issue graph: a shared FIFO "ready" queue
  * that a fixed pool of workers pull from. A node only enters the queue once
  * every dependency is marked done — the same "blocked -> ready -> done"
- * lifecycle Beads tracks for real issues.
+ * lifecycle Beads tracks for real issues. Nodes with a `spawns` rule can add
+ * new nodes to the graph the instant they finish.
  */
 export async function runBeads(dag: Dag, options: BeadsOptions): Promise<RunResult> {
-  const { workers, speed } = options;
+  const { workers, speed, seed } = options;
   const byId = new Map(dag.nodes.map((n) => [n.id, n]));
   const remainingDeps = new Map(dag.nodes.map((n) => [n.id, n.dependsOn.length]));
   const dependents = new Map<string, string[]>(dag.nodes.map((n) => [n.id, []]));
@@ -27,6 +31,7 @@ export async function runBeads(dag: Dag, options: BeadsOptions): Promise<RunResu
     }
   }
 
+  const doneIds = new Set<string>();
   const ready: string[] = dag.nodes.filter((n) => n.dependsOn.length === 0).map((n) => n.id);
   const entries: TimelineEntry[] = [];
   const start = performance.now();
@@ -45,6 +50,15 @@ export async function runBeads(dag: Dag, options: BeadsOptions): Promise<RunResu
     for (const fn of pending) fn();
   }
 
+  function addNode(node: { id: string; dependsOn: string[] }): void {
+    dependents.set(node.id, []);
+    const unresolved = node.dependsOn.filter((d) => !doneIds.has(d));
+    remainingDeps.set(node.id, unresolved.length);
+    for (const dep of unresolved) dependents.get(dep)?.push(node.id);
+    remaining++;
+    if (unresolved.length === 0) ready.push(node.id);
+  }
+
   async function worker(lane: number): Promise<void> {
     while (remaining > 0) {
       const nodeId = ready.shift();
@@ -58,6 +72,13 @@ export async function runBeads(dag: Dag, options: BeadsOptions): Promise<RunResu
       await sleep(node.durationMs / speed);
       const nodeEnd = performance.now() - start;
       entries.push({ nodeId, label: node.label, start: nodeStart, end: nodeEnd, lane });
+      doneIds.add(nodeId);
+
+      if (node.spawns) {
+        for (const spawned of materializeSpawn(seed, nodeId, node.spawns, byId)) {
+          addNode(spawned);
+        }
+      }
 
       for (const depId of dependents.get(nodeId) ?? []) {
         const left = (remainingDeps.get(depId) ?? 0) - 1;

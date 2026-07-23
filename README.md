@@ -14,6 +14,18 @@ tasks:
 Define a DAG (or pick a preset), run it both ways, and compare the resulting
 Gantt-style timelines and total wall-clock time.
 
+### Dynamic DAGs
+
+A node can carry a `spawns` rule: once it finishes, it deterministically picks
+one weighted outcome (seeded by a run seed + that node's id) and splices the
+outcome's nodes into the graph as its dependents — modeling a task whose
+result decides what work appears next. The seed makes the choice depend only
+on `(seed, nodeId)`, never on execution order or timing, so Beads and Actors
+always face the *identical* sequence of dynamic decisions even though they
+discover and run nodes differently — the comparison stays fair. Try the
+"Dynamic: flaky pipeline" preset, where `Run tests` spawns either `Deploy` or
+a `Debug failure → Re-run tests` chain.
+
 ## Local development
 
 ```bash
