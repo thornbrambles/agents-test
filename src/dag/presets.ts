@@ -70,4 +70,22 @@ export const presets: Dag[] = [
       },
     ],
   },
+  {
+    name: "Mixed: jobs + LLM agents",
+    nodes: [
+      { id: "collect", label: "Collect input docs", durationMs: 200, dependsOn: [], kind: "job" },
+      { id: "agent1", label: "Agent: summarize doc 1", durationMs: 900, dependsOn: ["collect"], kind: "agent" },
+      { id: "agent2", label: "Agent: summarize doc 2", durationMs: 850, dependsOn: ["collect"], kind: "agent" },
+      { id: "agent3", label: "Agent: summarize doc 3", durationMs: 950, dependsOn: ["collect"], kind: "agent" },
+      { id: "agent4", label: "Agent: summarize doc 4", durationMs: 800, dependsOn: ["collect"], kind: "agent" },
+      { id: "format", label: "Format report template", durationMs: 300, dependsOn: [], kind: "job" },
+      {
+        id: "merge",
+        label: "Merge summaries into report",
+        durationMs: 300,
+        dependsOn: ["agent1", "agent2", "agent3", "agent4", "format"],
+        kind: "job",
+      },
+    ],
+  },
 ];

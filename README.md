@@ -26,6 +26,20 @@ discover and run nodes differently — the comparison stays fair. Try the
 "Dynamic: flaky pipeline" preset, where `Run tests` spawns either `Deploy` or
 a `Debug failure → Re-run tests` chain.
 
+### Jobs vs. agents
+
+A node can be marked `kind: "agent"` (default is `"job"`) to model an LLM
+call instead of deterministic work. All agent nodes share one concurrency
+limit — a stand-in for an API rate limit — that's independent of the
+worker-pool size (Beads) or the concurrency cap (Actors); `job` nodes are
+never throttled by it. This is the more realistic constraint once a "bead" or
+"actor" is an LLM agent rather than a deterministic task: the bottleneck
+stops being how many workers/actors you have and becomes the shared rate
+limit both scheduling styles have to respect equally. Try "Mixed: jobs + LLM
+agents" — with the limit at 2, only 2 of the 4 agent calls run at a time
+under *either* scheduler, while the independent `format` job runs immediately,
+unaffected.
+
 ## Local development
 
 ```bash

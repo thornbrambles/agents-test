@@ -184,6 +184,16 @@ button:disabled {
   text-overflow: ellipsis;
 }
 
+.tl-bar.agent {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.18) 0 6px,
+    rgba(0, 0, 0, 0) 6px 12px
+  );
+  outline: 1px dashed rgba(0, 0, 0, 0.5);
+  outline-offset: -2px;
+}
+
 .timeline.actors .tl-bar {
   background: var(--accent-2);
 }

@@ -49,6 +49,13 @@
           <input id="seed-input" type="number" value="1" />
           <button id="reroll-seed-btn" class="secondary" type="button">🎲 New seed</button>
         </div>
+        <div class="row">
+          <label for="limit-agents-input">
+            <input id="limit-agents-input" type="checkbox" checked />
+            Limit concurrent "agent" nodes (simulated LLM rate limit)
+          </label>
+          <input id="agent-concurrency-input" type="number" min="1" max="16" value="2" />
+        </div>
         <div class="row buttons">
           <button id="run-beads-btn">Run Beads</button>
           <button id="run-actors-btn">Run Actors</button>
@@ -94,6 +101,16 @@
           Beads and Actors always face the <em>same</em> dynamic choices even though they discover
           and execute nodes in a different order &mdash; the comparison stays fair. Reroll the seed
           to see a different draw.
+        </p>
+        <p>
+          <strong>Jobs vs. agents</strong>: a node can be marked <code>kind: "agent"</code> to model
+          an LLM call instead of a deterministic job. Agent nodes share one concurrency limit (a
+          stand-in for an API rate limit) that's separate from the worker-pool/actor-cap settings
+          above &mdash; deterministic <code>job</code> nodes are never throttled by it. Try "Mixed:
+          jobs + LLM agents": Actors would normally fire all 4 agent calls at once, but with the
+          limit set to 2, two of them queue behind the rate limit even though nothing else is
+          blocking them &mdash; while the independent <code>format</code> job runs immediately,
+          unaffected.
         </p>
       </section>
     </main>

@@ -10,6 +10,9 @@ export interface ActorsOptions {
   speed: number;
   /** Seeds any dynamic-spawn decisions, so beads and actors see the same ones. */
   seed: number;
+  /** Caps how many "agent" kind nodes may run at once, across all actors —
+   * a stand-in for a shared LLM API rate limit. Undefined = unlimited. */
+  agentConcurrency?: number;
 }
 
 /**
@@ -20,8 +23,9 @@ export interface ActorsOptions {
  * Nodes with a `spawns` rule create new actors on the fly as they finish.
  */
 export async function runActors(dag: Dag, options: ActorsOptions): Promise<RunResult> {
-  const { maxConcurrency, speed, seed } = options;
+  const { maxConcurrency, speed, seed, agentConcurrency } = options;
   const sem = maxConcurrency ? new Semaphore(maxConcurrency) : null;
+  const agentSem = agentConcurrency ? new Semaphore(agentConcurrency) : null;
   const byId = new Map(dag.nodes.map((n) => [n.id, n]));
   const entries: TimelineEntry[] = [];
   const start = performance.now();
@@ -40,15 +44,18 @@ export async function runActors(dag: Dag, options: ActorsOptions): Promise<RunRe
     if (cached) return cached;
 
     const node = byId.get(id)!;
+    const kind = node.kind ?? "job";
     const promise = (async () => {
       await Promise.all(node.dependsOn.map((dep) => actorFor(dep)));
       const release = sem ? await sem.acquire() : null;
+      const releaseAgent = kind === "agent" && agentSem ? await agentSem.acquire() : null;
       const lane = claimLane();
       const nodeStart = performance.now() - start;
       await sleep(node.durationMs / speed);
       const nodeEnd = performance.now() - start;
-      entries.push({ nodeId: id, label: node.label, start: nodeStart, end: nodeEnd, lane });
+      entries.push({ nodeId: id, label: node.label, start: nodeStart, end: nodeEnd, lane, kind });
       freeLanes.push(lane);
+      releaseAgent?.();
       release?.();
 
       if (node.spawns) {

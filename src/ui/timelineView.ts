@@ -12,13 +12,14 @@ export function renderTimeline(container: HTMLElement, result: RunResult | null)
     laneEl.className = "tl-lane";
     for (const entry of result.entries.filter((e) => e.lane === lane)) {
       const bar = document.createElement("div");
-      bar.className = "tl-bar";
+      bar.className = entry.kind === "agent" ? "tl-bar agent" : "tl-bar";
       const leftPct = (entry.start / totalMs) * 100;
       const widthPct = Math.max(((entry.end - entry.start) / totalMs) * 100, 1);
       bar.style.left = `${leftPct}%`;
       bar.style.width = `${widthPct}%`;
       bar.textContent = entry.label;
-      bar.title = `${entry.label}: ${Math.round(entry.start)}–${Math.round(entry.end)}ms`;
+      const kindNote = entry.kind === "agent" ? " (agent, rate-limited)" : "";
+      bar.title = `${entry.label}${kindNote}: ${Math.round(entry.start)}–${Math.round(entry.end)}ms`;
       laneEl.appendChild(bar);
     }
     container.appendChild(laneEl);

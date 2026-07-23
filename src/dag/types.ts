@@ -1,9 +1,12 @@
+export type NodeKind = "job" | "agent";
+
 export interface SpawnTemplate {
   id: string;
   label: string;
   durationMs: number;
   /** Extra deps beyond the implicit dependency on the node that spawned it. */
   dependsOn?: string[];
+  kind?: NodeKind;
 }
 
 export interface SpawnOutcome {
@@ -23,6 +26,12 @@ export interface DagNode {
   /** Simulated work duration in ms. */
   durationMs: number;
   dependsOn: string[];
+  /**
+   * "agent" nodes are throttled by the shared agent-concurrency limit (a
+   * stand-in for an LLM API rate limit); "job" (the default) nodes are
+   * deterministic work that isn't subject to that limit.
+   */
+  kind?: NodeKind;
   /**
    * Optional: once this node finishes, deterministically pick one outcome
    * (seeded by the run seed + this node's id, so the choice never depends on
@@ -45,6 +54,7 @@ export interface TimelineEntry {
   end: number;
   /** which worker/actor slot handled it, for lane rendering */
   lane: number;
+  kind: NodeKind;
 }
 
 export interface RunResult {

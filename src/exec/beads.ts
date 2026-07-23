@@ -1,6 +1,6 @@
 import type { Dag, RunResult, TimelineEntry } from "../dag/types";
 import { materializeSpawn } from "../dag/spawn";
-import { sleep } from "./util";
+import { Semaphore, sleep } from "./util";
 
 export interface BeadsOptions {
   /** How many workers pull from the shared "ready" queue at once. Beads itself
@@ -11,6 +11,9 @@ export interface BeadsOptions {
   speed: number;
   /** Seeds any dynamic-spawn decisions, so beads and actors see the same ones. */
   seed: number;
+  /** Caps how many "agent" kind nodes may run at once, across all workers —
+   * a stand-in for a shared LLM API rate limit. Undefined = unlimited. */
+  agentConcurrency?: number;
 }
 
 /**
@@ -21,7 +24,8 @@ export interface BeadsOptions {
  * new nodes to the graph the instant they finish.
  */
 export async function runBeads(dag: Dag, options: BeadsOptions): Promise<RunResult> {
-  const { workers, speed, seed } = options;
+  const { workers, speed, seed, agentConcurrency } = options;
+  const agentSem = agentConcurrency ? new Semaphore(agentConcurrency) : null;
   const byId = new Map(dag.nodes.map((n) => [n.id, n]));
   const remainingDeps = new Map(dag.nodes.map((n) => [n.id, n.dependsOn.length]));
   const dependents = new Map<string, string[]>(dag.nodes.map((n) => [n.id, []]));
@@ -68,10 +72,13 @@ export async function runBeads(dag: Dag, options: BeadsOptions): Promise<RunResu
         continue;
       }
       const node = byId.get(nodeId)!;
+      const kind = node.kind ?? "job";
+      const releaseAgent = kind === "agent" && agentSem ? await agentSem.acquire() : null;
       const nodeStart = performance.now() - start;
       await sleep(node.durationMs / speed);
       const nodeEnd = performance.now() - start;
-      entries.push({ nodeId, label: node.label, start: nodeStart, end: nodeEnd, lane });
+      releaseAgent?.();
+      entries.push({ nodeId, label: node.label, start: nodeStart, end: nodeEnd, lane, kind });
       doneIds.add(nodeId);
 
       if (node.spawns) {

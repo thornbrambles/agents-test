@@ -49,6 +49,7 @@ export function materializeSpawn(
       label: tmpl.label,
       durationMs: tmpl.durationMs,
       dependsOn: [nodeId, ...(tmpl.dependsOn ?? [])],
+      kind: tmpl.kind,
     };
     byId.set(node.id, node);
     created.push(node);
