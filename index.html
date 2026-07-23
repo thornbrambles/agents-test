@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Beads vs Actors: DAG task execution</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <h1>Beads vs Actors</h1>
+        <p class="subtitle">Same DAG, two scheduling philosophies</p>
+      </div>
+      <div id="auth-panel" class="auth-panel"></div>
+    </header>
+
+    <main>
+      <section class="panel" id="dag-panel">
+        <h2>1. Define a DAG</h2>
+        <div class="row">
+          <label for="preset-select">Preset</label>
+          <select id="preset-select"></select>
+          <button id="validate-btn" class="secondary">Validate</button>
+        </div>
+        <textarea id="dag-json" spellcheck="false" rows="16"></textarea>
+        <p id="dag-errors" class="errors" role="alert"></p>
+      </section>
+
+      <section class="panel" id="controls-panel">
+        <h2>2. Configure the run</h2>
+        <div class="row">
+          <label for="workers-input">Beads worker pool size</label>
+          <input id="workers-input" type="number" min="1" max="16" value="1" />
+        </div>
+        <div class="row">
+          <label for="cap-actors-input">
+            <input id="cap-actors-input" type="checkbox" />
+            Cap actor concurrency to the same pool size (fair comparison)
+          </label>
+        </div>
+        <div class="row">
+          <label for="speed-input">Simulation speed (&times;)</label>
+          <input id="speed-input" type="range" min="1" max="8" step="0.5" value="1" />
+          <span id="speed-label">1&times;</span>
+        </div>
+        <div class="row buttons">
+          <button id="run-beads-btn">Run Beads</button>
+          <button id="run-actors-btn">Run Actors</button>
+          <button id="run-both-btn" class="primary">Run Both</button>
+        </div>
+      </section>
+
+      <section class="panel" id="results-panel">
+        <h2>3. Compare</h2>
+        <div id="summary" class="summary"></div>
+        <div class="timelines">
+          <div>
+            <h3>Beads (shared ready-queue, N workers)</h3>
+            <div id="beads-timeline" class="timeline"></div>
+          </div>
+          <div>
+            <h3>Actors (reactive, message-driven)</h3>
+            <div id="actors-timeline" class="timeline actors"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="about-panel">
+        <h2>What's the difference?</h2>
+        <p>
+          <strong>Beads</strong> models a dependency-tracking issue tracker: work items move
+          <code>blocked &rarr; ready &rarr; done</code>, and a fixed pool of workers pulls the next
+          ready item off one shared queue. Parallelism is capped by how many workers you staff &mdash;
+          it's a <em>pull</em> model.
+        </p>
+        <p>
+          <strong>Actors</strong> models each task as an independent actor that reacts the instant
+          every dependency's "done" message has arrived, then broadcasts its own completion. There's
+          no central queue: parallelism falls directly out of the dependency graph &mdash; it's a
+          <em>push</em>/reactive model. Cap its concurrency above to compare it against Beads with
+          the same resource budget.
+        </p>
+      </section>
+    </main>
+
+    <dialog id="settings-dialog">
+      <h3>GitHub OAuth settings</h3>
+      <p class="dialog-help">
+        Create a GitHub OAuth App (Settings &rarr; Developer settings &rarr; OAuth Apps) with
+        "Enable Device Flow" checked, then deploy <code>worker/token-proxy.js</code> as a
+        Cloudflare Worker. See the README for details.
+      </p>
+      <div class="row">
+        <label for="client-id-input">OAuth App client ID</label>
+        <input id="client-id-input" type="text" placeholder="Iv1.xxxxxxxxxxxx" />
+      </div>
+      <div class="row">
+        <label for="proxy-url-input">Token proxy URL</label>
+        <input id="proxy-url-input" type="text" placeholder="https://your-worker.workers.dev" />
+      </div>
+      <div class="row buttons">
+        <button id="settings-save-btn" class="primary">Save</button>
+        <button id="settings-cancel-btn" class="secondary" type="button">Cancel</button>
+      </div>
+    </dialog>
+
+    <dialog id="device-dialog">
+      <h3>Sign in with GitHub</h3>
+      <p>
+        Go to <a id="device-verification-link" href="#" target="_blank" rel="noopener"></a> and
+        enter this code:
+      </p>
+      <p class="device-code" id="device-code"></p>
+      <p id="device-status" class="dialog-help"></p>
+      <div class="row buttons">
+        <button id="device-cancel-btn" class="secondary" type="button">Cancel</button>
+      </div>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
